@@ -1,0 +1,17 @@
+.xAxisGrid line {
+  stroke: gray;
+  stroke-width: 1px;
+  stroke-dasharray: 5;
+}
+
+.xAxisGrid path {
+  stroke-width: 0px;
+}
+
+.xAxisBottom line {
+  stroke-width: 0px;
+}
+
+.xAxisBottom path {
+  stroke-width: 0px;
+}

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8"/>
+	<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.min.css"/>
+	
+	<link rel="stylesheet" href="css/weo.css"/>
+
+	<title>IMF World Economic Outlook</title>
+</head>
+<body>
+	<div class="container-fluid">
+		<h1>IMF World Economic Outlook</h1>
+		<div class="form-group">
+			<label for="subjectSelector">Select statistic</label>	
+			<select id="subjectSelector" class="form-control">
+			</select>
+		</div>
+		<div class="form-group">
+			<label for="countrySelector">Select country</label>
+			<select id="countrySelector" class="form-control" multiple="multiple">
+			</select>
+		</div>
+		<div class="row">
+			<div class="col-md-4 form-inline">
+				<label>Select period</label><br/>
+				<select id="fromYearSelector" class="form-control">
+				</select>
+				&nbsp;-&nbsp;
+				<select id="toYearSelector" class="form-control">
+				</select>	
+			</div>
+			<div class="col-md-4 form-inline">
+				<label for="regionSelector">Select countries by region</label><br/>
+				<select id="regionSelector" class="form-control">
+				</select>		
+			</div>
+			<div class="col-md-4 form-inline">
+				<label>Select countries by value</label><br/>	
+				<button id="highestCountrySelector" type="button" class="btn btn-secondary">Highest 10</button>
+				&nbsp;
+				<button id="lowestCountrySelector" type="button" class="btn btn-secondary">Lowest 10 </button>	
+			</div>
+		</div>
+  </div>
+  
+	<script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/smalot-bootstrap-datetimepicker/2.4.0/js/bootstrap-datetimepicker.min.js"></script>
+	<script src="https://d3js.org/d3.v4.min.js"></script>
+
+	<script src="js/weo.js"></script>
+</body>
+</html>
