@@ -50,9 +50,9 @@ var weoData,        // All data from weoFile.
 	yearData = Array.apply(null, Array(constant.endYear - constant.startYear + 1)).map(
 		function (_, i) { return constant.startYear + i; })
 
-var margin = {top: 100, right: 200, bottom: 100, left:100, label:25 }
+var margin = {top: 50, right: 200, bottom: 50, left:100, label:25 }
 var	width = 960 - margin.left - margin.right,
-	height = 600 - margin.top - margin.bottom
+	height = 550 - margin.top - margin.bottom
 
 var plot = {
 	seriesColorList: d3.scaleOrdinal(d3.schemeCategory20)
@@ -649,7 +649,7 @@ function plotSeriesLegend(data, visibleY) {
 
 	d3.forceSimulation(seriesLegendData.nodes)
     .alphaDecay(0.25)
-	.force('collision', d3.forceCollide().radius(10).strength(1))
+	.force('collision', d3.forceCollide().radius(12).strength(1))
     .force('X', d3.forceX().x(function(d) { return d.targetX }))
     .force('Y', d3.forceY().y(function(d) { return d.targetY }))
     .on('tick', seriesLegendUpdate)
@@ -660,15 +660,19 @@ function plotSeriesLegend(data, visibleY) {
 			xFlagPos = 20,
 			yFlagPos = -6
 
+		function y(y) {
+			return Math.max(-margin.top / 2, Math.min(height + margin.bottom / 2, y)); 
+		}
+		
 		seriesLegendText
 		.attr('x', function(d) { return d.x + xTextPos })
-		.attr('y', function(d) { return d.y })
+		.attr('y', function(d) { return y(d.y) })
 		seriesLegendMarker
 		.attr('cx', function(d) { return d.x + xMarkerPos })
-		.attr('cy', function(d) { return d.y })
+		.attr('cy', function(d) { return y(d.y) })
 		seriesLegendFlag
 		.attr('x', function(d) { return d.x + xFlagPos })
-		.attr('y', function(d) { return d.y + yFlagPos })
+		.attr('y', function(d) { return y(d.y) + yFlagPos })
 	}
 }
 
