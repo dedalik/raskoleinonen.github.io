@@ -19,18 +19,34 @@ limitations under the License.
 // http://www.imf.org/external/pubs/ft/weo/2016/02/weoData/download.aspx
 
 var weoFile = "data/WEOOct2016all.xls";
+var countryFile = "data/country.csv";
 
 var weoColumn =
 {
-	countryCode       : "ISO", // ISO three letter country code
-	subjectCode       : "WEO Subject Code",
-	country           : "Country",
-	subject           : "Subject Descriptor",
-	subjectNote       : "Subject Notes",
-	unit              : "Units",
-	scale             : "Scale",
-	note              : "Country/Series-specific Notes",
-	estimateStartYear : "Estimates Start After"
+	countryCode: "ISO", // ISO three letter country code
+	countryName: "Country",
+	subjectCode: "WEO Subject Code",
+	subjectName: "Subject Descriptor",
+	unit       : "Units",
+	scale      : "Scale"
+	// "WEO Country Code"
+	// "Subject Notes"
+	// "Country/Series-specific Notes"
+	// "Estimates Start After"
+}
+
+var weoDataExclude = 
+{
+	subjectCode: ["FLIBOR6"]
+}
+
+var countryColumn =
+{
+	countryCode       : "ISO_ALPHA3", // ISO three letter country code
+	countryName       : "COUNTRY_NAME",
+	fullCountryName   : "FULL_COUNTRY_NAME"
+	// "ISO_ALPHA2" 
+	// "ISO_NUMERIC"
 }
 
 var constant =
@@ -46,11 +62,12 @@ var region = initRegion();
 
 var weoData,        // All data from weoFile.
 	weoCountryData, // Unique country data from weoFile.
-	weoSubjectData, // Unique subject data from weoFile.	
+	weoSubjectData, // Unique subject data from weoFile.
+	countryData, // Unique country data from countryFile.
 	yearData = Array.apply(null, Array(constant.endYear - constant.startYear + 1)).map(
 		function (_, i) { return constant.startYear + i; })
 
-var margin = {top: 50, right: 200, bottom: 50, left:100, label:25 }
+var margin = {top: 50, right: 300, bottom: 50, left:100, label:25 }
 var	width = 960 - margin.left - margin.right,
 	height = 550 - margin.top - margin.bottom
 
@@ -62,13 +79,15 @@ var plot = {
 	seriesStrokeOpacity: 0.65,
 	seriesHighlightStrokeWidth: "4px",
 	seriesHighlightStrokeOpacity: 1,
-	seriesUnHighlightStrokeOpacity: 0.1,
+	seriesUnHighlightStrokeOpacity: 0.05,
 	seriesMarkerRadius: "6px",
 	seriesHighlightMarkerRadius: "6px",
 	seriesHighlightTransitionDuration: 750,	
 	seriesLegendTextFontFamily: "sans-serif",
 	seriesLegendTextFontSize: "12px",
 	seriesLegendTextFontWeight: "normal",
+	seriesLegendColumnFirstColumnCnt: 10,
+	seriesLegendColumnWidth: 150,
 	axisFontFamily: "sans-serif",
 	axisFontSize: "14px",
 	axisFontFamily: "sans-serif",
@@ -107,17 +126,46 @@ var RefreshType = {
 }
 
 d3.queue()
+  .defer(d3.tsv, countryFile)
   .defer(d3.tsv, weoFile)
   .awaitAll(function(error, results) {
     if (error) { console.log(error); throw error; }
-
-	weoData = results[0];
+	
+	countryData = readCountryData(results[0]);
+	weoData = readWeoData(results[1], countryData);
 
 	init();
 		
 	refresh(RefreshType.ALL);
-  }); 
+}); 
 
+function readCountryData(result) {
+	var countryData = d3.nest()
+		.key(function(d) { return d[countryColumn.countryCode]; } )
+		.object(result);
+	Object.keys(countryData).forEach( function(countryCode) {
+		countryData[countryCode] = countryData[countryCode][0]
+	});
+	// console.log("countryData:", countryData);	
+	return countryData
+}
+
+// http://www.free-country-flags.com/countries.php
+
+function readWeoData(result, countryData) {
+	result.forEach( function(d) { 
+		var countryCode = d[weoColumn.countryCode]
+		if (!countryData.hasOwnProperty(countryCode)) {
+			console.error("Missing country data for: ", countryCode)
+		}
+		else {
+			// Overwrite country name
+			d[weoColumn.countryName] = countryData[countryCode][countryColumn.countryName]
+		}
+	})
+	return result
+}
+  
 function init() {
 	console.log("init");
 	checkRequiredValue(weoData);		
@@ -146,11 +194,12 @@ function init() {
 	// Init country and subject data.
 	
 	weoCountryData = getUniqueData(weoData, 
-		weoColumn.countryCode, [weoColumn.countryCode, weoColumn.country]);
+		weoColumn.countryCode, [weoColumn.countryCode, weoColumn.countryName]);
 	//console.log("weoCountryData: ", weoCountryData);
 	
 	weoSubjectData = getUniqueData(weoData, 
-		weoColumn.subjectCode, [weoColumn.subjectCode, weoColumn.subject, weoColumn.unit, weoColumn.scale]);
+		weoColumn.subjectCode, [weoColumn.subjectCode, weoColumn.subjectName, weoColumn.unit, weoColumn.scale], weoDataExclude.subjectCode);
+		
 	//console.log("weoSubjectData: ", weoSubjectData);
 	
 	initCountrySelector(['VEN', 'USA']);
@@ -180,7 +229,7 @@ function initCountrySelector(countryCodeArray) {
 		weoCountryData, 
 		getSelectedData(weoCountryData, weoColumn.countryCode, countryCodeArray),
 		function(d) { return d[weoColumn.countryCode]; },
-		function(d) { return d[weoColumn.country]; },
+		function(d) { return d[weoColumn.countryName]; },
 		{ maximumSelectionLength: constant.maxCountries } );
 
 }
@@ -213,7 +262,7 @@ function initSubjectSelector(subjectCode) {
 		weoSubjectData,
 		getSelectedData(weoSubjectData, weoColumn.subjectCode, subjectCode),
 		function(d) { return d[weoColumn.subjectCode]; },
-		function(d) { return d[weoColumn.subject] + " as " + d[weoColumn.unit] + " (" + d[weoColumn.subjectCode] + ")"; } );
+		function(d) { return d[weoColumn.subjectName] + " as " + d[weoColumn.unit] + " (" + d[weoColumn.subjectCode] + ")"; } );
 
 	$("#subjectSelector").change(function() {
 		refresh(RefreshType.SUBJECT);
@@ -311,7 +360,7 @@ function refresh(refreshType) {
 	// console.log("toYearSelection: ", toYearSelection);
 	
 	var subjectCode = subjectSelection[weoColumn.subjectCode];
-	var subject = subjectSelection[weoColumn.subject];
+	var subject = subjectSelection[weoColumn.subjectName];
 	var unit = subjectSelection[weoColumn.unit];
 	var scale = subjectSelection[weoColumn.scale];
 		
@@ -593,12 +642,14 @@ function plotSeriesLegend(data, visibleY) {
 	checkRequiredValue(data);
 	checkRequiredValue(visibleY);
 
+	var i = 0;
 	var seriesLegendData = {
 		nodes: data.map(function(d) {
-			var x = width
+			var column = Math.min(1, Math.floor(i++ / plot.seriesLegendColumnFirstColumnCnt))
+			var x = width + column * plot.seriesLegendColumnWidth
 			var y = visibleY(d.seriesLegendY)
 			var v = { x: x, y: y, targetX: x, targetY: y, fx: x, seriesColor: d.seriesColor }
-			v[weoColumn.country] = d[weoColumn.country]			
+			v[weoColumn.countryName] = d[weoColumn.countryName]			
 			v[weoColumn.countryCode] = d[weoColumn.countryCode]
 			return v;
 		})
@@ -622,7 +673,7 @@ function plotSeriesLegend(data, visibleY) {
 		.style("font-weight", plot.seriesTextFontWeight)
 		.style("text-anchor", "left")
 		.style("alignment-baseline", "central")
-		.text( function(d) { return d[weoColumn.country] } )
+		.text( function(d) { return d[weoColumn.countryName] } )
 		.on("mouseover", function (d) { highlightSeries( d[weoColumn.countryCode], data ) })
 		.on("mouseout", function (d) { unHighlightSeries( d[weoColumn.countryCode], data ) })
 	
@@ -726,18 +777,27 @@ function unHighlightSeries(countryCode, data) {
 }
 
 
-function getUniqueData(data, uniqueProperty, returnProperty) {
+function getUniqueData(data, uniqueProperty, returnProperty, excludePropertyValue) {
 	checkRequiredValue(data, "array" );	
 	checkRequiredValue(uniqueProperty, "string" );
 	checkRequiredValue(returnProperty);
+	checkOptionalValue(excludePropertyValue, "array");	
+	
 	if ( jQuery.type( returnProperty ) !== "array" ) {
 		returnProperty = [ returnProperty ];
 	}	
 	var uniqueValues = [];
 	var uniqueObjects = [];
 	data.forEach(function(d) {
-		if (d[uniqueProperty] != null && uniqueValues.indexOf(d[uniqueProperty]) === -1) {
-			uniqueValues.push( d[uniqueProperty] );
+		var value = d[uniqueProperty]
+		if (excludePropertyValue !== undefined &&
+			excludePropertyValue.find(function(d) { return value === d } )) {
+			// console.info("Excluding: ", value)
+			return
+		}
+
+		if (value != null && uniqueValues.indexOf(value) === -1) {
+			uniqueValues.push(value);
 			var uniqueObject = {};
 			returnProperty.forEach(function(property) {
 				uniqueObject[property] = d[property];
@@ -808,7 +868,7 @@ function filterWeoDataBySubject(
 	var data = [];
 	
 	var subjectCode = subjectSelection[weoColumn.subjectCode];
-	var subject = subjectSelection[weoColumn.subject];
+	var subject = subjectSelection[weoColumn.subjectName];
 	
 	// console.log("filter subjectCode: ", subjectCode);
 
@@ -816,7 +876,7 @@ function filterWeoDataBySubject(
 	weoData.forEach(function(d) {
         if (subjectCode == d[weoColumn.subjectCode]) {
 			var countryCode = d[weoColumn.countryCode];			
-			var country = d[weoColumn.country];
+			var country = d[weoColumn.countryName];
 			var values = [];
 			yearData.forEach(function(year) {
 				var y = parseFloat( d[year].replace(/,/g,'') );
@@ -827,9 +887,9 @@ function filterWeoDataBySubject(
 			if ( values.length > 0 ) {
 				var seriesData = {};
 				seriesData[weoColumn.countryCode] = countryCode;
-				seriesData[weoColumn.country] = country;		
+				seriesData[weoColumn.countryName] = country;		
 				seriesData[weoColumn.subjectCode] = subjectCode;
-				seriesData[weoColumn.subject] = subject;		
+				seriesData[weoColumn.subjectName] = subject;		
 				seriesData.values = values;
 				data.push(seriesData);
 			}
@@ -929,7 +989,7 @@ function initRegion() {
 	var list = {
 	"Eastern Africa": [
 		"BDI", "COM", "DJI", "ERI", "ETH", "KEN", "MDG", 
-		"MWI", "MUS",  "MOZ", "RWA", "SYC", "SSD", "UGA", 
+		"MWI", "MUS", "MOZ", "RWA", "SYC", "SSD", "UGA", 
 		"TZA", "ZMB", "ZWE"],
 	"Middle Africa": [
 		"AGO", "CMR", "CAF", "TCD", "COD", "COD", "GNQ", 
