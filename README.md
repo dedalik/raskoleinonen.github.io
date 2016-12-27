@@ -2,7 +2,7 @@
 
 ## Usage
 
-Browse to index.html file.
+Go to https://raskoleinonen.github.io/
 
 **Select statistic**
 Choose any of the WEO statistics.
