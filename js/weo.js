@@ -21,57 +21,179 @@ limitations under the License.
 var weoFile = "data/WEOOct2016all.xls";
 var countryFile = "data/country.csv";
 
-var weoColumn =
-{
-	countryCode: "ISO", // ISO three letter country code
-	countryName: "Country",
-	subjectCode: "WEO Subject Code",
-	subjectName: "Subject Descriptor",
-	unit       : "Units",
-	scale      : "Scale"
+function CountryDataMap(countryDataArray) {
+	check.assert.array.of.instanceStrict(countryDataArray, CountryData)
+	var countryDataMap = this
+	countryDataArray.forEach(function(d) { countryDataMap[d.countryCode] = d; })
+}
+
+CountryDataMap.prototype.getCountryDataByCountryCode = function(countryCode) {
+	if (this.hasOwnProperty(countryCode)) {
+		return this[countryCode]
+	}
+	console.error("Unknown country code: ", countryCode)
+	return null
+}
+
+/** Creates a CountryDataMap object from d3.tsv result.
+*/
+CountryDataMap.create = function(result) {
+	var countryCodeColumn     = "ISO_ALPHA3", // ISO three letter country code
+		countryNameColumn     = "COUNTRY_NAME",
+		longCountryNameColumn = "LONG_COUNTRY_NAME"
+		// "ISO_ALPHA2" 
+		// "ISO_NUMERIC"
+
+	var countryDataArray = result.map(function(d) {
+		return new CountryData(
+			d[countryCodeColumn], 
+			d[countryNameColumn], 
+			d[longCountryNameColumn])
+	})
+	//console.log("countryDataArray:", countryDataArray)
+	var countryDataMap = new CountryDataMap(countryDataArray)
+	//console.log("countryDataMap:", countryDataMap)
+	return countryDataMap	
+}
+
+function CountryData(countryCode, countryName, longCountryName) {
+    this.countryCode = countryCode;
+    this.countryName = countryName;
+    this.longCountryName = longCountryName;	
+}
+
+/** Creates an array of WeoData objects from d3.tsv result.
+*/
+WeoData.create = function(result) {	
+var countryCodeColumn = "ISO", // ISO three letter country code
+	countryNameColumn = "Country",
+	subjectCodeColumn = "WEO Subject Code",
+	subjectNameColumn = "Subject Descriptor",
+	unitColumn = "Units",
+	scaleColumn = "Scale"
 	// "WEO Country Code"
 	// "Subject Notes"
 	// "Country/Series-specific Notes"
 	// "Estimates Start After"
+	
+	var weoDataArray = []
+	result.forEach( function(d) { 
+		var countryCode = d[countryCodeColumn]
+		var countryName = d[countryNameColumn]
+		var subjectCode = d[subjectCodeColumn]
+		var subjectName = d[subjectNameColumn]
+		var unit = d[unitColumn]
+		var scale = d[scaleColumn]
+		var countryData = countryDataMap
+			.getCountryDataByCountryCode(countryCode)
+		if (countryData != null) {
+			// Overwrite country name
+			countryName = countryData.countryName
+		} else {
+			// console.error("Missing country name: ", countryCode)
+		}
+		var values = []
+		yearData.forEach(function(year) {
+			var value = parseFloat( d[year].replace(/,/g,'') )
+			if (!isNaN(value)) {
+				if (value === "n/a") {
+					console.error("RRRRRRRR: ", value)					
+				}
+				values.push( new WeoDataValue(year, value)); }
+		});
+		if ( values.length > 0 ) {
+			var weoData = new WeoData(countryCode, countryName, 
+				subjectCode, subjectName, unit, scale, values)	
+			weoDataArray.push(weoData)
+		}
+	})
+	// console.log("weoDataArray:", weoDataArray)
+	return weoDataArray
 }
 
-var weoDataExclude = 
-{
+
+function WeoData(countryCode, countryName, subjectCode, subjectName, unit, scale, values) {
+	check.assert.assigned(countryCode);
+	check.assert.assigned(countryName);
+	check.assert.assigned(subjectCode);
+	check.assert.assigned(subjectName);
+	check.assert.assigned(unit);
+	check.assert.assigned(scale);	
+	check.assert.assigned(values);		
+	check.assert.string(countryCode);
+	check.assert.string(countryName);
+	check.assert.string(subjectCode);
+	check.assert.string(subjectName);
+	check.assert.string(unit);
+	check.assert.string(scale);	
+	check.assert.array.of.instanceStrict(values, WeoDataValue);	
+	this.countryCode = countryCode;
+	this.countryName = countryName;
+	this.subjectCode = subjectCode;
+	this.subjectName = subjectName;	
+	this.unit = unit;
+	this.scale = scale;	
+	this.values = values;
+}
+
+function WeoDataValue(year, value) {
+	check.assert.assigned(year);
+	check.assert.assigned(value);	
+	check.assert.integer(year);
+	check.assert.number(value);	
+	this.year = year;
+	this.value = value;
+}
+
+function SeriesData(countryCode, countryName, values) {
+	check.assert.assigned(countryCode);
+	check.assert.assigned(countryName);
+	check.assert.assigned(values);
+	check.assert.string(countryCode);
+	check.assert.string(countryName);
+	check.assert.array.of.instanceStrict(values, SeriesDataValue);	
+	this.countryCode = countryCode;
+	this.countryName = countryName;
+	this.values = values;
+}
+
+function SeriesDataValue(x, y) {
+	check.assert.assigned(x);
+	check.assert.assigned(y);
+	check.assert.instanceStrict(x, Date);	
+	check.assert.number(y);
+	this.x = x;
+	this.y = y;
+}
+
+
+
+var weoDataExclude = Object.freeze({
 	subjectCode: ["FLIBOR6"]
-}
+})
 
-var countryColumn =
-{
-	countryCode       : "ISO_ALPHA3", // ISO three letter country code
-	countryName       : "COUNTRY_NAME",
-	fullCountryName   : "FULL_COUNTRY_NAME"
-	// "ISO_ALPHA2" 
-	// "ISO_NUMERIC"
-}
-
-var constant =
-{
+var constant = Object.freeze({
 	startYear: 1980,
 	endYear: 2015,
 	maxCountries: 20,
 	minYears: 5,
 	highestOrLowestCountries: 10
-}
+})
 
-var region = initRegion();
+var region = Object.freeze( initRegion() )
 
-var weoData,        // All data from weoFile.
+var weoDataArray, // Data from weoFile.
 	weoCountryData, // Unique country data from weoFile.
 	weoSubjectData, // Unique subject data from weoFile.
-	countryData, // Unique country data from countryFile.
+	countryDataMap, // Country data from countryFile.
 	yearData = Array.apply(null, Array(constant.endYear - constant.startYear + 1)).map(
 		function (_, i) { return constant.startYear + i; })
 
-var margin = {top: 50, right: 300, bottom: 50, left:100, label:25 }
+var margin = Object.freeze({top: 50, right: 300, bottom: 50, left:100, label:25 })
 var	width = 960 - margin.left - margin.right,
 	height = 550 - margin.top - margin.bottom
 
-var plot = {
+var plot = Object.preventExtensions({
 	seriesColorList: d3.scaleOrdinal(d3.schemeCategory20)
 		.domain([0,constant.maxCountries-1]),
 	seriesColorMap: {},
@@ -113,9 +235,9 @@ var plot = {
 	yAxisLabel: null,
 	title: null,
 	seriesLegendGroup: null
-}
+})
 
-var RefreshType = {
+var RefreshType = Object.freeze({
 	YEAR: 'YEAR',
 	SUBJECT: 'SUBJECT',
 	COUNTRY: 'COUNTRY',
@@ -123,7 +245,7 @@ var RefreshType = {
 	ALL: 'ALL',
 	TOP: 'TOP',
 	BOTTOM: 'BOTTOM'
-}
+})
 
 d3.queue()
   .defer(d3.tsv, countryFile)
@@ -131,45 +253,26 @@ d3.queue()
   .awaitAll(function(error, results) {
     if (error) { console.log(error); throw error; }
 	
-	countryData = readCountryData(results[0]);
-	weoData = readWeoData(results[1], countryData);
+	countryDataMap = CountryDataMap.create(results[0])
+
+	weoDataArray = WeoData.create(results[1]) 
+	
+//	weoData = readWeoData(results[1], countryDataMap)
 
 	init();
 		
 	refresh(RefreshType.ALL);
 }); 
 
-function readCountryData(result) {
-	var countryData = d3.nest()
-		.key(function(d) { return d[countryColumn.countryCode]; } )
-		.object(result);
-	Object.keys(countryData).forEach( function(countryCode) {
-		countryData[countryCode] = countryData[countryCode][0]
-	});
-	// console.log("countryData:", countryData);	
-	return countryData
-}
-
 // http://www.free-country-flags.com/countries.php
-
-function readWeoData(result, countryData) {
-	result.forEach( function(d) { 
-		var countryCode = d[weoColumn.countryCode]
-		if (!countryData.hasOwnProperty(countryCode)) {
-			console.error("Missing country data for: ", countryCode)
-		}
-		else {
-			// Overwrite country name
-			d[weoColumn.countryName] = countryData[countryCode][countryColumn.countryName]
-		}
-	})
-	return result
-}
   
 function init() {
 	console.log("init");
-	checkRequiredValue(weoData);		
-		
+	check.assert.assigned(weoDataArray, "weoDataArray");
+	check.assert.assigned(countryDataMap, "countryDataMap");	
+	check.assert.array(weoDataArray, "weoDataArray");
+	check.assert.instanceStrict(countryDataMap, CountryDataMap)
+	
 	var widthWithMargins = width + margin.left + margin.right;
 	var heightWithMargins = height + margin.top + margin.bottom;
 
@@ -193,13 +296,13 @@ function init() {
 
 	// Init country and subject data.
 	
-	weoCountryData = getUniqueData(weoData, 
-		weoColumn.countryCode, [weoColumn.countryCode, weoColumn.countryName]);
+	weoCountryData = getUniqueData(weoDataArray,
+		"countryCode", ["countryCode", "countryName"]);
 	//console.log("weoCountryData: ", weoCountryData);
 	
-	weoSubjectData = getUniqueData(weoData, 
-		weoColumn.subjectCode, [weoColumn.subjectCode, weoColumn.subjectName, weoColumn.unit, weoColumn.scale], weoDataExclude.subjectCode);
-		
+	weoSubjectData = getUniqueData(weoDataArray,
+		"subjectCode", ["subjectCode", "subjectName", "unit", "scale"], 
+		weoDataExclude.subjectCode);
 	//console.log("weoSubjectData: ", weoSubjectData);
 	
 	initCountrySelector(['VEN', 'USA']);
@@ -214,8 +317,9 @@ function init() {
  */
 function initCountrySelector(countryCodeArray) {
 	console.log("initCountrySelector")
-	checkRequiredValue(countryCodeArray);
-
+	check.assert.assigned(countryCodeArray, "countryCodeArray");
+	check.assert.array(countryCodeArray, "countryCodeArray");
+	
 	if ($("#countrySelector").children().length === 0) {
 		$("#countrySelector").change(function() {
 			refresh(RefreshType.COUNTRY);
@@ -223,13 +327,16 @@ function initCountrySelector(countryCodeArray) {
 	}
 	
 	$("#countrySelector").empty();
-
+	
 	initSelector(
 		'countrySelector', 
-		weoCountryData, 
-		getSelectedData(weoCountryData, weoColumn.countryCode, countryCodeArray),
-		function(d) { return d[weoColumn.countryCode]; },
-		function(d) { return d[weoColumn.countryName]; },
+		weoCountryData,
+		weoCountryData.filter( function(d) {
+			return undefined !== countryCodeArray.find( 
+				function(countryCode) { return d.countryCode === countryCode })
+		}),
+		function(d) { return d.countryCode; },
+		function(d) { return d.countryName; },
 		{ maximumSelectionLength: constant.maxCountries } );
 
 }
@@ -260,9 +367,10 @@ function initSubjectSelector(subjectCode) {
 	initSelector(
 		'subjectSelector', 
 		weoSubjectData,
-		getSelectedData(weoSubjectData, weoColumn.subjectCode, subjectCode),
-		function(d) { return d[weoColumn.subjectCode]; },
-		function(d) { return d[weoColumn.subjectName] + " as " + d[weoColumn.unit] + " (" + d[weoColumn.subjectCode] + ")"; } );
+		weoSubjectData.filter( 
+			function(d) { return d.subjectCode === subjectCode }),
+		function(d) { return d.subjectCode; },
+		function(d) { return d.subjectName + " as " + d.unit + " (" + d.subjectCode + ")"; } );
 
 	$("#subjectSelector").change(function() {
 		refresh(RefreshType.SUBJECT);
@@ -272,8 +380,8 @@ function initSubjectSelector(subjectCode) {
 function initYearSelector() {
 	initSelector(
 		'fromYearSelector', 
-		yearData, 
-		constant.startYear,		
+		yearData,
+		constant.startYear,
 		function(d) { return d; },
 		function(d) { return d; } );
 
@@ -327,22 +435,35 @@ function initHighestLowestSelector() {
 
 function refresh(refreshType) {
 	console.log("refresh", refreshType);	
-	checkRequiredValue(refreshType, "string");	
+	check.assert.assigned(refreshType, "refreshType");
+	check.assert.string(refreshType, "refreshType");
 
-	var subjectSelection = getSelectedData(weoSubjectData, 
-		weoColumn.subjectCode, $('#subjectSelector').val())[0];
+	function getSubjectSelection() {
+		var subjectCode = $('#subjectSelector').val()
+		return weoSubjectData.find(function(d) { 
+			return d.subjectCode === subjectCode })
+	}
+
+	function getCountrySelection() {
+		var countryCodeArray = $('#countrySelector').val()
+		return weoCountryData.filter(function(d) {
+			return undefined !== countryCodeArray.find( 
+				function(countryCode) { return d.countryCode === countryCode })
+		})
+	}
 	
+	var subjectSelection = getSubjectSelection()
+		
 	var fromYearSelection = +$("#fromYearSelector").val();	
 	var toYearSelection = +$("#toYearSelector").val();
 	
-	var subjectData = filterWeoDataBySubject(weoData, subjectSelection);
+	var seriesDataArray = getSeriesData(weoDataArray, subjectSelection);
 
 	if (refreshType === RefreshType.TOP ||
 		refreshType === RefreshType.BOTTOM) {
-		var data = orderSubjectDataByValue(subjectData,
-			fromYearSelection, toYearSelection, refreshType);
+		var data = orderSeriesDataByValue(seriesDataArray, fromYearSelection, toYearSelection, refreshType);
 		var countryCodeArray = data.slice(0, constant.highestOrLowestCountries).map(
-			function(d) { return d[weoColumn.countryCode] });		
+			function(d) { return d.countryCode });		
 		initCountrySelector(countryCodeArray);
 	}
 	else if (refreshType === RefreshType.REGION) {
@@ -351,18 +472,17 @@ function refresh(refreshType) {
 			initCountrySelector(countryCodeArray);
 	}
 	
-	var countrySelection = getSelectedData(weoCountryData, 
-		weoColumn.countryCode, $('#countrySelector').val() );    
+	var countrySelection = getCountrySelection()
 		
 	// console.log("countrySelection: ", countrySelection);
 	// console.log("subjectSelection: ", subjectSelection);
 	// console.log("fromYearSelection: ", fromYearSelection);
 	// console.log("toYearSelection: ", toYearSelection);
 	
-	var subjectCode = subjectSelection[weoColumn.subjectCode];
-	var subject = subjectSelection[weoColumn.subjectName];
-	var unit = subjectSelection[weoColumn.unit];
-	var scale = subjectSelection[weoColumn.scale];
+	var subjectCode = subjectSelection.subjectCode;
+	var subject = subjectSelection.subjectName;
+	var unit = subjectSelection.unit;
+	var scale = subjectSelection.scale;
 		
 	// console.log("subjectCode: ", subjectCode);
 	// console.log("subject: ", subject);
@@ -372,8 +492,8 @@ function refresh(refreshType) {
 
 	var data = []
 	countrySelection.forEach(function(d) {
-		var seriesData = filterSubjectDataByCountry(subjectData, d)
-		if (seriesData != null) {
+		var seriesData = filterSeriesDataByCountry(seriesDataArray, d)
+		if (check.assigned(seriesData)) {
 			data.push(seriesData)
 		}
 	})
@@ -413,14 +533,14 @@ function refresh(refreshType) {
 
 function setSeriesColor(data) {	
 	Object.keys(plot.seriesColorMap).forEach(function(p) {
-		if (null == data.find(function(d) { return p === d[weoColumn.countryCode] }) ) {
+		if (null == data.find(function(d) { return p === d.countryCode }) ) {
 			delete plot.seriesColorMap[p]
 		}
 	})
 
 	data.forEach(function(d) {
-		var countryCode = d[weoColumn.countryCode]
-		if (plot.seriesColorMap[countryCode] == null) {
+		var countryCode = d.countryCode
+		if (!check.assigned(plot.seriesColorMap[countryCode])) {
 			var colorIndex =
 				d3.range(plot.seriesColorList.domain()[0],plot.seriesColorList.domain()[1]+1).find(function(colorIndex) {
 					return !Object.keys(plot.seriesColorMap).find(function(countryCode) {
@@ -435,7 +555,7 @@ function setSeriesColor(data) {
 }
 
 function plotXAxisLabel() {
-	if (plot.xAxisLabel == null) {
+	if (!check.assigned(plot.xAxisLabel)) {
 		plot.xAxisLabel = plot.svg.append("text")
 			.attr("y", height + 50)
 			.attr("x", width / 2)
@@ -447,10 +567,12 @@ function plotXAxisLabel() {
 }
 
 function plotYAxisLabel(unit, scale) {
-	checkRequiredValue(unit, "string");
-	checkRequiredValue(scale, "string");
-
-	if (plot.yAxisLabel == null) {
+	check.assert.assigned(unit, "unit");
+	check.assert.assigned(scale, "scale");
+	check.assert.string(unit, "unit");
+	check.assert.string(scale, "scale");
+	
+	if (!check.assigned(plot.yAxisLabel)) {
 		plot.yAxisLabel = plot.svg.append("text")
 		.attr("transform", "rotate(-90)")
 		.attr("y", 0 - margin.left + margin.label)
@@ -464,10 +586,12 @@ function plotYAxisLabel(unit, scale) {
 }
 
 function plotTitle(subject, subjectCode) {
-	checkRequiredValue(subject, "string");
-	checkRequiredValue(subjectCode, "string");
+	check.assert.assigned(subject, "subject");
+	check.assert.assigned(subjectCode, "subjectCode");
+	check.assert.string(subject, "subject");
+	check.assert.string(subjectCode, "subjectCode");
 		
-	if (plot.title == null) {
+	if (!check.assigned(plot.title)) {
 		plot.title = plot.svg.append("text")
 			.attr("y", - margin.label)
 			.attr("x", width / 2)
@@ -480,9 +604,9 @@ function plotTitle(subject, subjectCode) {
 }
 
 function plotXAxisGrid(visibleX) {
-	checkRequiredValue(visibleX);
-
-	if (plot.xAxisGridGroup == null) {
+	check.assert.assigned(visibleX, "visibleX");
+	
+	if (!check.assigned(plot.xAxisGridGroup)) {		
 		plot.xAxisGrid = d3.axisBottom(visibleX)
 			.tickSize(-height, 0, 0)
 			.tickFormat("")
@@ -502,10 +626,10 @@ function plotXAxisGrid(visibleX) {
 }
 
 function plotXAxisOrigin(visibleX, visibleY) {
-	checkRequiredValue(visibleX);
-	checkRequiredValue(visibleY);
-
-	if (plot.xAxisOriginGroup == null) {
+	check.assert.assigned(visibleX, "visibleX");
+	check.assert.assigned(visibleY, "visibleY");
+	
+	if (!check.assigned(plot.xAxisOriginGroup)) {
 		plot.xAxisOrigin = d3.axisBottom(visibleX)
 			.tickFormat("")
 		plot.xAxisOriginGroup = plot.svg.append("g")
@@ -524,9 +648,9 @@ function plotXAxisOrigin(visibleX, visibleY) {
 }
 
 function plotXAxisBottom(visibleX) {
-	checkRequiredValue(visibleX);
+	check.assert.assigned(visibleX, "visibleX");
 
-	if (plot.xAxisBottomGroup == null) {
+	if (!check.assigned(plot.xAxisBottomGroup)) {	
 		plot.xAxisBottom = d3.axisBottom(visibleX)
 		plot.xAxisBottomGroup = plot.svg.append("g")
 			.attr("class", plot.xAxisBottomClass)		
@@ -546,9 +670,9 @@ function plotXAxisBottom(visibleX) {
 }
 
 function plotYAxis(visibleY) {
-	checkRequiredValue(visibleY);
-	
-	if (plot.yAxisGroup == null) {
+	check.assert.assigned(visibleY, "visibleY");
+
+	if (!check.assigned(plot.yAxisGroup)) {	
 		plot.yAxis = d3.axisLeft(visibleY);	
 		plot.yAxisGroup = plot.svg.append("g")
   			.style("font-size", plot.axisFontSize)
@@ -566,12 +690,19 @@ function plotYAxis(visibleY) {
 }
 
 function plotSeries(data, visibleX, visibleY, fromYearSelection, toYearSelection, refreshType) {
-	checkRequiredValue(data);
-	checkRequiredValue(visibleX);
-	checkRequiredValue(visibleY);
-	checkRequiredValue(fromYearSelection);
-	checkRequiredValue(toYearSelection);
-	checkRequiredValue(refreshType);
+	check.assert.assigned(data, "data");	
+	check.assert.assigned(visibleX, "visibleX");
+	check.assert.assigned(visibleY, "visibleY");
+	check.assert.assigned(fromYearSelection, "fromYearSelection");
+	check.assert.assigned(toYearSelection, "toYearSelection");
+	check.assert.assigned(refreshType, "refreshType");
+	check.assert.array(data, "data");	
+	check.assert.function(visibleX, "visibleX");
+	check.assert.function(visibleY, "visibleY");	
+	check.assert.integer(fromYearSelection, "fromYearSelection");	
+	check.assert.integer(toYearSelection, "fromYearSelection");	
+	check.assert.string(refreshType, "refreshType");	
+
 	// startYear                              endYear
 	//     ^                                   ^
 	//     |-------------totalWidth------------|
@@ -614,7 +745,7 @@ function plotSeries(data, visibleX, visibleY, fromYearSelection, toYearSelection
 
 		plot.seriesPaths = plot.svg
 			.selectAll("." + seriesClass)
-			.data(data, function(d) { return d[weoColumn.countryCode] })
+			.data(data, function(d) { return d.countryCode })
 			.enter()
 			.append("g")
 			.attr("class", seriesClass)
@@ -626,21 +757,23 @@ function plotSeries(data, visibleX, visibleY, fromYearSelection, toYearSelection
 		plot.seriesPaths
 			.attr("d", function(d) { return line(d.values); })
 			.attr("clip-path", "url(#series-clip)")
-			.attr("id", function(d) { return "series_" + d[weoColumn.countryCode] } )
+			.attr("id", function(d) { return "series_" + d.countryCode } )
 			.style("fill", "none")
 			.style("stroke", function(d) { return d.seriesColor })
 			.style("stroke-width", plot.seriesStrokeWidth)
 			.style("stroke-linejoin", "round")			
 			.style("stroke-linecap", "round") 
 			.style("opacity", plot.seriesStrokeOpacity)			
-			.on("mouseover", function (d) { highlightSeries( d[weoColumn.countryCode], data ) })
-			.on("mouseout", function (d) { unHighlightSeries( d[weoColumn.countryCode], data ) })
+			.on("mouseover", function (d) { highlightSeries( d.countryCode, data ) })
+			.on("mouseout", function (d) { unHighlightSeries( d.countryCode, data ) })
 	}
 }
 
 function plotSeriesLegend(data, visibleY) {
-	checkRequiredValue(data);
-	checkRequiredValue(visibleY);
+	check.assert.assigned(data, "data");	
+	check.assert.assigned(visibleY, "visibleY");
+	check.assert.array(data, "data");	
+	check.assert.function(visibleY, "visibleY");	
 
 	var i = 0;
 	var seriesLegendData = {
@@ -649,15 +782,15 @@ function plotSeriesLegend(data, visibleY) {
 			var x = width + column * plot.seriesLegendColumnWidth
 			var y = visibleY(d.seriesLegendY)
 			var v = { x: x, y: y, targetX: x, targetY: y, fx: x, seriesColor: d.seriesColor }
-			v[weoColumn.countryName] = d[weoColumn.countryName]			
-			v[weoColumn.countryCode] = d[weoColumn.countryCode]
+			v.countryName = d.countryName			
+			v.countryCode = d.countryCode
 			return v;
 		})
 	}
 
 	// console.log("seriesLegendData:",seriesLegendData);
 
-	if (plot.seriesLegendGroup == null) {
+	if (!check.assigned(plot.seriesLegendGroup)) {	
 		plot.seriesLegendGroup = plot.svg.append("g")
 	}
 	
@@ -667,26 +800,26 @@ function plotSeriesLegend(data, visibleY) {
 		.data(seriesLegendData.nodes)
 	seriesLegendText.exit().remove()	
 	seriesLegendText = seriesLegendText.enter().append('text')
-		.attr("id", function(d) { return "seriesText_" + d[weoColumn.countryCode] } )	
+		.attr("id", function(d) { return "seriesText_" + d.countryCode } )	
 		.style("font-family", plot.seriesTextFontFamily)
 		.style("font-size", plot.seriesTextFontSize)
 		.style("font-weight", plot.seriesTextFontWeight)
 		.style("text-anchor", "left")
 		.style("alignment-baseline", "central")
-		.text( function(d) { return d[weoColumn.countryName] } )
-		.on("mouseover", function (d) { highlightSeries( d[weoColumn.countryCode], data ) })
-		.on("mouseout", function (d) { unHighlightSeries( d[weoColumn.countryCode], data ) })
+		.text( function(d) { return d.countryName } )
+		.on("mouseover", function (d) { highlightSeries( d.countryCode, data ) })
+		.on("mouseout", function (d) { unHighlightSeries( d.countryCode, data ) })
 	
 	var seriesLegendMarker = plot.seriesLegendGroup.selectAll("circle")
 		.data(seriesLegendData.nodes)
 	seriesLegendMarker.exit().remove()	
 	seriesLegendMarker = seriesLegendMarker.enter().append('circle')
-		.attr("id", function(d) { return "seriesMarker_" + d[weoColumn.countryCode] } )
+		.attr("id", function(d) { return "seriesMarker_" + d.countryCode } )
 		.attr('r', plot.seriesMarkerRadius)
 		.attr('fill', function(d) { return d.seriesColor } )
 		.style("opacity", .75)
-		.on("mouseover", function (d) { highlightSeries( d[weoColumn.countryCode], data ) })
-		.on("mouseout", function (d) { unHighlightSeries( d[weoColumn.countryCode], data ) })
+		.on("mouseover", function (d) { highlightSeries( d.countryCode, data ) })
+		.on("mouseout", function (d) { unHighlightSeries( d.countryCode, data ) })
 
 	var seriesLegendFlag = plot.seriesLegendGroup.selectAll("image")
 		.data(seriesLegendData.nodes)
@@ -694,9 +827,9 @@ function plotSeriesLegend(data, visibleY) {
 	seriesLegendFlag = seriesLegendFlag.enter().append("svg:image")
 		.attr('width', 20)
 		.attr('height', 12) 
-		.attr("xlink:href", function(d) { return "flags/" + d[weoColumn.countryCode] + ".png" })
-		.on("mouseover", function (d) { highlightSeries( d[weoColumn.countryCode], data ) })
-		.on("mouseout", function (d) { unHighlightSeries( d[weoColumn.countryCode], data ) })
+		.attr("xlink:href", function(d) { return "flags/" + d.countryCode + ".png" })
+		.on("mouseover", function (d) { highlightSeries( d.countryCode, data ) })
+		.on("mouseout", function (d) { unHighlightSeries( d.countryCode, data ) })
 
 	d3.forceSimulation(seriesLegendData.nodes)
     .alphaDecay(0.25)
@@ -727,8 +860,12 @@ function plotSeriesLegend(data, visibleY) {
 	}
 }
 
-// TODO: passing data to hide others
 function highlightSeries(countryCode, data) {
+	check.assert.assigned(data, "data");	
+	check.assert.assigned(countryCode, "countryCode");
+	check.assert.array(data, "data");	
+	check.assert.string(countryCode, "countryCode");	
+
 	function highlightTransition(selection) {
 		return selection
 			.transition()
@@ -749,16 +886,21 @@ function highlightSeries(countryCode, data) {
 		.call(highlightTransition)
 		.attr('r', plot.seriesHighlightMarkerRadius)
 	data.forEach(function(d) {
-		if (countryCode !== d[weoColumn.countryCode]) {
-			d3.select('#series_' + d[weoColumn.countryCode] )
+		if (countryCode !== d.countryCode) {
+			d3.select('#series_' + d.countryCode )
 				.call(unHighlightTransition)			
-			d3.select('#seriesMarker_' + d[weoColumn.countryCode] )
+			d3.select('#seriesMarker_' + d.countryCode )
 				.call(unHighlightTransition)			
 		}
 	})
 }
 
 function unHighlightSeries(countryCode, data) {
+	check.assert.assigned(data, "data");	
+	check.assert.assigned(countryCode, "countryCode");
+	check.assert.array(data, "data");	
+	check.assert.string(countryCode, "countryCode");	
+	
 	function unHighlightTransition(selection) {
 		return selection
 			.transition()
@@ -767,10 +909,10 @@ function unHighlightSeries(countryCode, data) {
 	}
 
 	data.forEach(function(d) {
-		d3.select('#series_' + d[weoColumn.countryCode] )
+		d3.select('#series_' + d.countryCode )
 			.call(unHighlightTransition)
 			.style("stroke-width", plot.seriesStrokeWidth) 
-		d3.select('#seriesMarker_' + d[weoColumn.countryCode] )
+		d3.select('#seriesMarker_' + d.countryCode )
 			.call(unHighlightTransition)
 			.attr('r', plot.seriesMarkerRadius)
 	})
@@ -778,25 +920,33 @@ function unHighlightSeries(countryCode, data) {
 
 
 function getUniqueData(data, uniqueProperty, returnProperty, excludePropertyValue) {
-	checkRequiredValue(data, "array" );	
-	checkRequiredValue(uniqueProperty, "string" );
-	checkRequiredValue(returnProperty);
-	checkOptionalValue(excludePropertyValue, "array");	
-	
-	if ( jQuery.type( returnProperty ) !== "array" ) {
+	check.assert.assigned(data, "data");	
+	check.assert.assigned(uniqueProperty, "uniqueProperty");
+	check.assert.assigned(returnProperty, "returnProperty");
+	check.assert.array(data, "data");
+	check.assert.string(uniqueProperty, "uniqueProperty");			
+	if ( !check.array(returnProperty) ) {
 		returnProperty = [ returnProperty ];
-	}	
+	}
+	check.assert.array.of.string(returnProperty);
+	if ( check.assigned(excludePropertyValue) ) {
+		if ( !check.array(excludePropertyValue) ) {
+			excludePropertyValue = [ excludePropertyValue ];
+		}
+		check.assert.array.of.string(excludePropertyValue);
+	}
+
 	var uniqueValues = [];
 	var uniqueObjects = [];
 	data.forEach(function(d) {
 		var value = d[uniqueProperty]
-		if (excludePropertyValue !== undefined &&
+		if (check.assigned(excludePropertyValue) &&
 			excludePropertyValue.find(function(d) { return value === d } )) {
 			// console.info("Excluding: ", value)
 			return
 		}
 
-		if (value != null && uniqueValues.indexOf(value) === -1) {
+		if (check.assigned(value) && uniqueValues.indexOf(value) === -1) {
 			uniqueValues.push(value);
 			var uniqueObject = {};
 			returnProperty.forEach(function(property) {
@@ -808,34 +958,24 @@ function getUniqueData(data, uniqueProperty, returnProperty, excludePropertyValu
 	return uniqueObjects;
 }
 
-function getSelectedData(data, property, values) {
-	checkRequiredValue(data, "array" );	
-	checkRequiredValue(property, "string" );
-	checkRequiredValue(values);	
-	if ( jQuery.type( values ) !== "array" ) {
-		values = [ values ];
-	}
-	var objects = [];	
-	data.forEach(function(d) {
-		values.forEach(function(value) {
-			if (d[property] != null && d[property] === value) {
-				objects.push( d );
-			}
-		});
-	});
-	return objects;
-}
-
 function initSelector(id, data, selectedData, valueCallback, textCallback, options) {
-	checkRequiredValue(id, "string");
-	checkRequiredValue(data, "array");	
-
-	if ( selectedData != null && jQuery.type( selectedData ) !== "array" ) {
-		selectedData = [ selectedData ];
+	check.assert.assigned(id, "id");
+	check.assert.assigned(data, "data");
+	check.assert.assigned(valueCallback, "valueCallback");
+	check.assert.assigned(textCallback, "textCallback");
+	check.assert.string(id, "id");			
+	check.assert.array(data, "data");
+	if ( check.assigned(selectedData) ) {
+		if ( !check.array(selectedData) ) {
+			selectedData = [ selectedData ];
+		}
 	}
-	checkRequiredValue(valueCallback, "function" );	
-	checkRequiredValue(textCallback, "function" );	
-	checkOptionalValue(options, "object" );	
+	check.assert.function(valueCallback, "valueCallback");
+	check.assert.function(textCallback, "textCallback");
+	if ( check.assigned(options) ) {
+		check.assert.object(options, "options" );
+	}
+
 	var selector = $('#' + id);
 	data.forEach( function(d) {
 		var option =
@@ -845,10 +985,10 @@ function initSelector(id, data, selectedData, valueCallback, textCallback, optio
 		});
 		option.appendTo(selector);
 	});
-	if (selectedData != null ) {
+	if (check.assigned(selectedData) ) {
 		selector.val(selectedData.map(valueCallback));
 	}
-	if (options != null) {
+	if (check.assigned(options) ) {
 		selector.select2(options);
 	}
 	else {
@@ -857,77 +997,79 @@ function initSelector(id, data, selectedData, valueCallback, textCallback, optio
 	return selector;
 }
 
-function filterWeoDataBySubject(
-	weoData,
+function getSeriesData(
+	weoDataArray,
 	subjectSelection) {
-	console.log("filterWeoDataBySubject");
-	
-	checkRequiredValue(weoData, "array" );	
-	checkRequiredValue(subjectSelection, "object" );	
+	//console.log("getSeriesData");	
+	check.assert.assigned(weoDataArray, "weoDataArray");
+	check.assert.assigned(subjectSelection, "subjectSelection");
+	check.assert.array(weoDataArray, "weoDataArray");
+	check.assert.object(subjectSelection, "subjectSelection");			
 
 	var data = [];
 	
-	var subjectCode = subjectSelection[weoColumn.subjectCode];
-	var subject = subjectSelection[weoColumn.subjectName];
+	var subjectCode = subjectSelection.subjectCode;
+	var subject = subjectSelection.subjectName;
 	
 	// console.log("filter subjectCode: ", subjectCode);
 
 	var parseTime = d3.timeParse("%Y");
-	weoData.forEach(function(d) {
-        if (subjectCode == d[weoColumn.subjectCode]) {
-			var countryCode = d[weoColumn.countryCode];			
-			var country = d[weoColumn.countryName];
-			var values = [];
-			yearData.forEach(function(year) {
-				var y = parseFloat( d[year].replace(/,/g,'') );
-				if (!isNaN(y)) {
-					values.push({ countryCode: countryCode, x: parseTime(year), y: y });
-				}
-			});
-			if ( values.length > 0 ) {
-				var seriesData = {};
-				seriesData[weoColumn.countryCode] = countryCode;
-				seriesData[weoColumn.countryName] = country;		
-				seriesData[weoColumn.subjectCode] = subjectCode;
-				seriesData[weoColumn.subjectName] = subject;		
-				seriesData.values = values;
+	weoDataArray.forEach(function(d) {
+        if (subjectCode == d.subjectCode) {
+			var countryCode = d.countryCode;
+			var countryName = d.countryName;
+			var seriesValues = []
+			d.values.forEach(function(value) {
+				seriesValues.push(new SeriesDataValue(
+					parseTime(value.year), value.value)) 
+			})
+			if ( seriesValues.length > 0 ) {
+				var seriesData = new SeriesData(
+					countryCode, countryName, seriesValues);
 				data.push(seriesData);
 			}
 		};		
 	});	
+	// console.log("SeriesDataArray:", data)
 	return data;
 }  
 
-function filterSubjectDataByCountry(
-	subjectData,
+function filterSeriesDataByCountry(
+	seriesDataArray,
 	countrySelection) {
-	console.log("filterSubjectDataByCountry");	
-	checkRequiredValue(subjectData);
-	checkRequiredValue(countrySelection);	
+	// console.log("filterSeriesDataByCountry");	
+	check.assert.assigned(seriesDataArray, "seriesDataArray");
+	check.assert.assigned(countrySelection, "countrySelection");
+	check.assert.array(seriesDataArray, "seriesDataArray");
+	check.assert.object(countrySelection, "countrySelection");				
 	
 	var data = null;
 	
-	var countryCode = countrySelection[weoColumn.countryCode];
-	subjectData.forEach(function(d) {
-		if (countryCode == d[weoColumn.countryCode]) {
+	var countryCode = countrySelection.countryCode;
+	seriesDataArray.forEach(function(d) {
+		if (countryCode == d.countryCode) {
 			data = d;
 		}
 	});
 	return data;
 }  
 
-function orderSubjectDataByValue(
-	subjectData,
+function orderSeriesDataByValue(
+	seriesDataArray,
 	fromYearSelection,
 	toYearSelection,
 	refreshType) {	
-	console.log("orderSubjectDataByValue");
-	checkRequiredValue(subjectData);
-	checkRequiredValue(fromYearSelection);	
-	checkRequiredValue(toYearSelection);	
-	checkRequiredValue(refreshType);	
-
-	subjectData.forEach(function(d) {
+	//console.log("orderSeriesDataByValue");
+	check.assert.assigned(seriesDataArray, "seriesDataArray");
+	check.assert.assigned(fromYearSelection, "fromYearSelection");
+	check.assert.assigned(toYearSelection, "toYearSelection");
+	check.assert.assigned(refreshType, "refreshType");
+	check.assert.array(seriesDataArray, "seriesDataArray");
+	check.assert.integer(fromYearSelection, "fromYearSelection");	
+	check.assert.integer(toYearSelection, "toYearSelection");	
+	check.assert.string(refreshType, "refreshType");
+	
+	seriesDataArray.forEach(function(d) {
 		var yValues = []
 		d.values.forEach(function(d) {
 			var year = d.x.getFullYear()
@@ -942,41 +1084,19 @@ function orderSubjectDataByValue(
 
 	switch(refreshType) {
 		case RefreshType.TOP:
-			return subjectData.sort(function (a, b) {
+			return seriesDataArray.sort(function (a, b) {
 				if (a.maxY > b.maxY) {return -1 }
 				if (a.maxY < b.maxY) { return 1 }
 				return 0
 			});				
 		case RefreshType.BOTTOM:
-			return subjectData.sort(function (a, b) {
+			return seriesDataArray.sort(function (a, b) {
 				if (a.minY < b.minY) {return -1 }
 				if (a.minY > b.minY) { return 1 }
 				return 0
 			});
 		default:
 			return null;
-	}
-}
-
-function checkRequiredValue(value, type) {
-	if (value == null) {
-		throw Error("Required value is missing" );
-	}
-	if (type != null) {
-		if (jQuery.type( value ) !== type ) {
-			throw Error("Required value is an " + jQuery.type( value ) + " instead of " + type );
-		}
-	}
-}		
-
-function checkOptionalValue(value, type) {
-	if (value == null) {
-		return;
-	}
-	if (type != null) {
-		if (jQuery.type( value ) !== type ) {
-			throw Error("Optional value is an " + jQuery.type( value ) + " instead of " + type );
-		}
 	}
 }
 
