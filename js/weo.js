@@ -117,6 +117,8 @@ d3.queue()
 function init() {
 	// console.log("init");
 	
+	$("#loading").hide();
+	
 	var widthWithMargins = width + margin.left + margin.right;
 	var heightWithMargins = height + margin.top + margin.bottom;
 	

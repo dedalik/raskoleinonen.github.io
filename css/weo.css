@@ -1,6 +1,6 @@
 .navbar-weo {
   background: #295470;
-  font-weight: 700;
+  font-weight: bold;
   border: none;
 }
 
@@ -36,6 +36,13 @@ section.about {
   padding: 15px;
   background: #476F8A;
   color: white;
+}
+
+.loading {
+	color: black;
+	padding: 150px;
+	text-align:center;
+	font-weight: bold;
 }
 
 footer {
