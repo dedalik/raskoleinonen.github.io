@@ -115,13 +115,13 @@ d3.queue()
 }); 
   
 function init() {
-	console.log("init");
+	// console.log("init");
 	
 	var widthWithMargins = width + margin.left + margin.right;
 	var heightWithMargins = height + margin.top + margin.bottom;
-
+	
 	// Append svg element.	
-	plot.svg = d3.select("body").append("svg")
+	plot.svg = d3.select("#svg").append("svg")
 		.attr("width", widthWithMargins)
 		.attr("height", heightWithMargins)
 		.append("g")
@@ -161,7 +161,7 @@ function init() {
  * any number of times. 
  */
 function initCountrySelector(countryCodeArray) {
-	console.log("initCountrySelector")
+	// console.log("initCountrySelector")
 	check.assert.array(countryCodeArray, "countryCodeArray");
 	
 	if ($("#countrySelector").children().length === 0) {
@@ -188,7 +188,7 @@ function initCountrySelector(countryCodeArray) {
 /** Initialises the region selector. May be called only once.
  */
 function initRegionSelector() {
-	console.log("initRegionSelector")
+	// console.log("initRegionSelector")
 	
 	$('#regionSelector').prepend('<option></option>');
 	
@@ -207,7 +207,7 @@ function initRegionSelector() {
 }
 
 function initSubjectSelector(subjectCode) {
-	console.log("initSubjectSelector")		
+	// console.log("initSubjectSelector")		
 	initSelector(
 		'subjectSelector', 
 		weoSubjectData,
@@ -278,7 +278,7 @@ function initHighestLowestSelector() {
 }
 
 function refresh(refreshType) {
-	console.log("refresh", refreshType);	
+	// console.log("refresh", refreshType);	
 	check.assert.string(refreshType, "refreshType");
 
 	function getSubjectSelection() {

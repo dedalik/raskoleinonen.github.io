@@ -1,3 +1,49 @@
+.navbar-weo {
+  background: #295470;
+  font-weight: 700;
+  border: none;
+}
+
+.navbar-weo .navbar-brand,
+.navbar-weo .navbar-brand:hover,
+.navbar-weo .navbar-brand:focus,
+.navbar-weo .navbar-brand.active {
+  color: white;
+}
+
+.navbar-weo .navbar-nav li a,
+.navbar-weo .navbar-nav li a:hover,
+.navbar-weo .navbar-nav li a:focus,
+.navbar-weo .navbar-nav li a:active {
+  color: white;
+}
+
+.about a:link,
+.about a:hover,
+.about a:focus,
+.about a:active,
+.about a:visited {
+    color: white;
+    text-decoration: underline;
+}
+
+section.weo {
+  padding-top: 75px;
+  min-height: 750px;
+}
+
+section.about {
+  padding: 15px;
+  background: #476F8A;
+  color: white;
+}
+
+footer {
+  color: white;
+  padding: 15px;
+  background-color: #295470;
+}
+
 .xAxisGrid line {
   stroke: gray;
   stroke-width: 1px;
