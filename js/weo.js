@@ -40,7 +40,7 @@ var weoData, // Data from weoFile.
 
 var margin = {top: 50, right: 300, bottom: 50, left:100, label:25 }
 var	width = 960 - margin.left - margin.right,
-	height = 550 - margin.top - margin.bottom
+	height = 450 - margin.top - margin.bottom
 
 var plot = {
 	seriesColorList: d3.scaleOrdinal(d3.schemeCategory20).domain([0,constant.maxCountries-1]),
@@ -56,7 +56,6 @@ var plot = {
 	seriesLegendTextFontFamily: "sans-serif",
 	seriesLegendTextFontSize: "12px",
 	seriesLegendTextFontWeight: "normal",
-	seriesLegendColumnFirstColumnCnt: 10,
 	seriesLegendColumnWidth: 150,
 	axisFontFamily: "sans-serif",
 	axisFontSize: "14px",
@@ -609,14 +608,26 @@ function plotSeriesLegend(data, visibleY) {
 	check.assert.function(visibleY, "visibleY");	
 
 	var i = 0;
+	var prevY = [];
+	var collisionY = 12;
+	var spacingY = 20;
+	function collision(y) {
+		return undefined !== prevY.find(function(d) { return Math.abs(y - d) < collisionY; } )
+	}
+	
 	var seriesLegendData = {
 		nodes: data.map(function(d) {
-			var column = Math.min(1, Math.floor(i++ / plot.seriesLegendColumnFirstColumnCnt))
-			var x = width + column * plot.seriesLegendColumnWidth
-			var y = visibleY(d.seriesLegendY)
+			var y = visibleY(d.seriesLegendY);
+			var column = 0;
+			if (collision(y)) {
+				y = i++ * spacingY;
+				column = 1;
+			}
+			var x = width + column * plot.seriesLegendColumnWidth;
 			var v = { x: x, y: y, targetX: x, targetY: y, fx: x, seriesColor: d.seriesColor }
-			v.countryName = d.countryName			
-			v.countryCode = d.countryCode
+			v.countryName = d.countryName;
+			v.countryCode = d.countryCode;
+			prevY.push(y);
 			return v;
 		})
 	}
@@ -664,33 +675,20 @@ function plotSeriesLegend(data, visibleY) {
 		.on("mouseover", function (d) { highlightSeries( d.countryCode, data ) })
 		.on("mouseout", function (d) { unHighlightSeries( d.countryCode, data ) })
 
-	d3.forceSimulation(seriesLegendData.nodes)
-    .alphaDecay(0.25)
-	.force('collision', d3.forceCollide().radius(12).strength(2))
-    .force('X', d3.forceX().x(function(d) { return d.targetX }))
-    .force('Y', d3.forceY().y(function(d) { return d.targetY }))
-    .on('tick', seriesLegendUpdate)
-
-	function seriesLegendUpdate() {
-		var xTextPos = 45,
-			xMarkerPos = 10,
-			xFlagPos = 20,
-			yFlagPos = -6
-
-		function y(y) {
-			return Math.max(-margin.top / 2, Math.min(height + margin.bottom / 2, y)); 
-		}
+	var xTextPos = 45,
+		xMarkerPos = 10,
+		xFlagPos = 20,
+		yFlagPos = -6
 		
-		seriesLegendText
-		.attr('x', function(d) { return d.x + xTextPos })
-		.attr('y', function(d) { return y(d.y) })
-		seriesLegendMarker
-		.attr('cx', function(d) { return d.x + xMarkerPos })
-		.attr('cy', function(d) { return y(d.y) })
-		seriesLegendFlag
-		.attr('x', function(d) { return d.x + xFlagPos })
-		.attr('y', function(d) { return y(d.y) + yFlagPos })
-	}
+	seriesLegendText
+	.attr('x', function(d) { return d.x + xTextPos })
+	.attr('y', function(d) { return d.y })
+	seriesLegendMarker
+	.attr('cx', function(d) { return d.x + xMarkerPos })
+	.attr('cy', function(d) { return d.y })
+	seriesLegendFlag
+	.attr('x', function(d) { return d.x + xFlagPos })
+	.attr('y', function(d) { return d.y + yFlagPos })
 }
 
 function highlightSeries(countryCode, data) {
