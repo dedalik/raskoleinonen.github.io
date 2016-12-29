@@ -14,188 +14,36 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-"use strict";
-
 // http://www.imf.org/external/pubs/ft/weo/2016/02/weoData/download.aspx
 
-var weoFile = "data/WEOOct2016all.xls";
+// http://www.free-country-flags.com/countries.php
+
+"use strict";
+
+var weoFile = "data/WEOOct2016all.xls"; 
 var countryFile = "data/country.csv";
 
-function CountryDataMap(countryDataArray) {
-	check.assert.array.of.instanceStrict(countryDataArray, CountryData)
-	var countryDataMap = this
-	countryDataArray.forEach(function(d) { countryDataMap[d.countryCode] = d; })
-}
-
-CountryDataMap.prototype.getCountryDataByCountryCode = function(countryCode) {
-	if (this.hasOwnProperty(countryCode)) {
-		return this[countryCode]
-	}
-	console.error("Unknown country code: ", countryCode)
-	return null
-}
-
-/** Creates a CountryDataMap object from d3.tsv result.
-*/
-CountryDataMap.create = function(result) {
-	var countryCodeColumn     = "ISO_ALPHA3", // ISO three letter country code
-		countryNameColumn     = "COUNTRY_NAME",
-		longCountryNameColumn = "LONG_COUNTRY_NAME"
-		// "ISO_ALPHA2" 
-		// "ISO_NUMERIC"
-
-	var countryDataArray = result.map(function(d) {
-		return new CountryData(
-			d[countryCodeColumn], 
-			d[countryNameColumn], 
-			d[longCountryNameColumn])
-	})
-	//console.log("countryDataArray:", countryDataArray)
-	var countryDataMap = new CountryDataMap(countryDataArray)
-	//console.log("countryDataMap:", countryDataMap)
-	return countryDataMap	
-}
-
-function CountryData(countryCode, countryName, longCountryName) {
-    this.countryCode = countryCode;
-    this.countryName = countryName;
-    this.longCountryName = longCountryName;	
-}
-
-/** Creates an array of WeoData objects from d3.tsv result.
-*/
-WeoData.create = function(result) {	
-var countryCodeColumn = "ISO", // ISO three letter country code
-	countryNameColumn = "Country",
-	subjectCodeColumn = "WEO Subject Code",
-	subjectNameColumn = "Subject Descriptor",
-	unitColumn = "Units",
-	scaleColumn = "Scale"
-	// "WEO Country Code"
-	// "Subject Notes"
-	// "Country/Series-specific Notes"
-	// "Estimates Start After"
-	
-	var weoDataArray = []
-	result.forEach( function(d) { 
-		var countryCode = d[countryCodeColumn]
-		var countryName = d[countryNameColumn]
-		var subjectCode = d[subjectCodeColumn]
-		var subjectName = d[subjectNameColumn]
-		var unit = d[unitColumn]
-		var scale = d[scaleColumn]
-		var countryData = countryDataMap
-			.getCountryDataByCountryCode(countryCode)
-		if (countryData != null) {
-			// Overwrite country name
-			countryName = countryData.countryName
-		} else {
-			// console.error("Missing country name: ", countryCode)
-		}
-		var values = []
-		yearData.forEach(function(year) {
-			var value = parseFloat( d[year].replace(/,/g,'') )
-			if (!isNaN(value)) {
-				if (value === "n/a") {
-					console.error("RRRRRRRR: ", value)					
-				}
-				values.push( new WeoDataValue(year, value)); }
-		});
-		if ( values.length > 0 ) {
-			var weoData = new WeoData(countryCode, countryName, 
-				subjectCode, subjectName, unit, scale, values)	
-			weoDataArray.push(weoData)
-		}
-	})
-	// console.log("weoDataArray:", weoDataArray)
-	return weoDataArray
-}
-
-
-function WeoData(countryCode, countryName, subjectCode, subjectName, unit, scale, values) {
-	check.assert.assigned(countryCode);
-	check.assert.assigned(countryName);
-	check.assert.assigned(subjectCode);
-	check.assert.assigned(subjectName);
-	check.assert.assigned(unit);
-	check.assert.assigned(scale);	
-	check.assert.assigned(values);		
-	check.assert.string(countryCode);
-	check.assert.string(countryName);
-	check.assert.string(subjectCode);
-	check.assert.string(subjectName);
-	check.assert.string(unit);
-	check.assert.string(scale);	
-	check.assert.array.of.instanceStrict(values, WeoDataValue);	
-	this.countryCode = countryCode;
-	this.countryName = countryName;
-	this.subjectCode = subjectCode;
-	this.subjectName = subjectName;	
-	this.unit = unit;
-	this.scale = scale;	
-	this.values = values;
-}
-
-function WeoDataValue(year, value) {
-	check.assert.assigned(year);
-	check.assert.assigned(value);	
-	check.assert.integer(year);
-	check.assert.number(value);	
-	this.year = year;
-	this.value = value;
-}
-
-function SeriesData(countryCode, countryName, values) {
-	check.assert.assigned(countryCode);
-	check.assert.assigned(countryName);
-	check.assert.assigned(values);
-	check.assert.string(countryCode);
-	check.assert.string(countryName);
-	check.assert.array.of.instanceStrict(values, SeriesDataValue);	
-	this.countryCode = countryCode;
-	this.countryName = countryName;
-	this.values = values;
-}
-
-function SeriesDataValue(x, y) {
-	check.assert.assigned(x);
-	check.assert.assigned(y);
-	check.assert.instanceStrict(x, Date);	
-	check.assert.number(y);
-	this.x = x;
-	this.y = y;
-}
-
-
-
-var weoDataExclude = Object.freeze({
-	subjectCode: ["FLIBOR6"]
-})
-
-var constant = Object.freeze({
+var constant = {
 	startYear: 1980,
 	endYear: 2015,
 	maxCountries: 20,
 	minYears: 5,
 	highestOrLowestCountries: 10
-})
+}
 
-var region = Object.freeze( initRegion() )
-
-var weoDataArray, // Data from weoFile.
+var weoData, // Data from weoFile.
 	weoCountryData, // Unique country data from weoFile.
 	weoSubjectData, // Unique subject data from weoFile.
 	countryDataMap, // Country data from countryFile.
 	yearData = Array.apply(null, Array(constant.endYear - constant.startYear + 1)).map(
 		function (_, i) { return constant.startYear + i; })
 
-var margin = Object.freeze({top: 50, right: 300, bottom: 50, left:100, label:25 })
+var margin = {top: 50, right: 300, bottom: 50, left:100, label:25 }
 var	width = 960 - margin.left - margin.right,
 	height = 550 - margin.top - margin.bottom
 
-var plot = Object.preventExtensions({
-	seriesColorList: d3.scaleOrdinal(d3.schemeCategory20)
-		.domain([0,constant.maxCountries-1]),
+var plot = {
+	seriesColorList: d3.scaleOrdinal(d3.schemeCategory20).domain([0,constant.maxCountries-1]),
 	seriesColorMap: {},
 	seriesStrokeWidth: "4px",
 	seriesStrokeOpacity: 0.65,
@@ -229,15 +77,15 @@ var plot = Object.preventExtensions({
 	xAxisGrid: null,	
 	xAxisGridGroup: null,
 	xAxisGridClass: "xAxisGrid",
+	xAxisLabel: null,
 	yAxis: null,
 	yAxisGroup: null,
-	xAxisLabel: null,
 	yAxisLabel: null,
 	title: null,
 	seriesLegendGroup: null
-})
+}
 
-var RefreshType = Object.freeze({
+var RefreshType = {
 	YEAR: 'YEAR',
 	SUBJECT: 'SUBJECT',
 	COUNTRY: 'COUNTRY',
@@ -245,33 +93,30 @@ var RefreshType = Object.freeze({
 	ALL: 'ALL',
 	TOP: 'TOP',
 	BOTTOM: 'BOTTOM'
-})
+}
 
 d3.queue()
   .defer(d3.tsv, countryFile)
   .defer(d3.tsv, weoFile)
   .awaitAll(function(error, results) {
     if (error) { console.log(error); throw error; }
-	
+
+	// Read country data from file.
 	countryDataMap = CountryDataMap.create(results[0])
 
-	weoDataArray = WeoData.create(results[1]) 
-	
-//	weoData = readWeoData(results[1], countryDataMap)
+	// Read weo data from file.
+	weoData = WeoData.create(results[1]) 
+
+	check.assert.instanceStrict(countryDataMap, CountryDataMap, "countryDataMap")	
+	check.assert.array(weoData, "weoData");
 
 	init();
 		
 	refresh(RefreshType.ALL);
 }); 
-
-// http://www.free-country-flags.com/countries.php
   
 function init() {
 	console.log("init");
-	check.assert.assigned(weoDataArray, "weoDataArray");
-	check.assert.assigned(countryDataMap, "countryDataMap");	
-	check.assert.array(weoDataArray, "weoDataArray");
-	check.assert.instanceStrict(countryDataMap, CountryDataMap)
 	
 	var widthWithMargins = width + margin.left + margin.right;
 	var heightWithMargins = height + margin.top + margin.bottom;
@@ -294,15 +139,16 @@ function init() {
 		.attr("width", width)
 		.attr("height", heightWithMargins)
 
-	// Init country and subject data.
-	
-	weoCountryData = getUniqueData(weoDataArray,
+	// Get unique country data from weo data.
+	weoCountryData = getUniqueData(weoData,
 		"countryCode", ["countryCode", "countryName"]);
 	//console.log("weoCountryData: ", weoCountryData);
 	
-	weoSubjectData = getUniqueData(weoDataArray,
+	// Get unique subject data from weo data.
+	var excludeSubject = ["FLIBOR6"]
+	weoSubjectData = getUniqueData(weoData,
 		"subjectCode", ["subjectCode", "subjectName", "unit", "scale"], 
-		weoDataExclude.subjectCode);
+		excludeSubject)
 	//console.log("weoSubjectData: ", weoSubjectData);
 	
 	initCountrySelector(['VEN', 'USA']);
@@ -317,7 +163,6 @@ function init() {
  */
 function initCountrySelector(countryCodeArray) {
 	console.log("initCountrySelector")
-	check.assert.assigned(countryCodeArray, "countryCodeArray");
 	check.assert.array(countryCodeArray, "countryCodeArray");
 	
 	if ($("#countrySelector").children().length === 0) {
@@ -435,7 +280,6 @@ function initHighestLowestSelector() {
 
 function refresh(refreshType) {
 	console.log("refresh", refreshType);	
-	check.assert.assigned(refreshType, "refreshType");
 	check.assert.string(refreshType, "refreshType");
 
 	function getSubjectSelection() {
@@ -457,7 +301,7 @@ function refresh(refreshType) {
 	var fromYearSelection = +$("#fromYearSelector").val();	
 	var toYearSelection = +$("#toYearSelector").val();
 	
-	var seriesDataArray = getSeriesData(weoDataArray, subjectSelection);
+	var seriesDataArray = getSeriesData(weoData, subjectSelection);
 
 	if (refreshType === RefreshType.TOP ||
 		refreshType === RefreshType.BOTTOM) {
@@ -567,8 +411,6 @@ function plotXAxisLabel() {
 }
 
 function plotYAxisLabel(unit, scale) {
-	check.assert.assigned(unit, "unit");
-	check.assert.assigned(scale, "scale");
 	check.assert.string(unit, "unit");
 	check.assert.string(scale, "scale");
 	
@@ -586,8 +428,6 @@ function plotYAxisLabel(unit, scale) {
 }
 
 function plotTitle(subject, subjectCode) {
-	check.assert.assigned(subject, "subject");
-	check.assert.assigned(subjectCode, "subjectCode");
 	check.assert.string(subject, "subject");
 	check.assert.string(subjectCode, "subjectCode");
 		
@@ -604,7 +444,7 @@ function plotTitle(subject, subjectCode) {
 }
 
 function plotXAxisGrid(visibleX) {
-	check.assert.assigned(visibleX, "visibleX");
+	check.assert.function(visibleX, "visibleX");
 	
 	if (!check.assigned(plot.xAxisGridGroup)) {		
 		plot.xAxisGrid = d3.axisBottom(visibleX)
@@ -626,8 +466,8 @@ function plotXAxisGrid(visibleX) {
 }
 
 function plotXAxisOrigin(visibleX, visibleY) {
-	check.assert.assigned(visibleX, "visibleX");
-	check.assert.assigned(visibleY, "visibleY");
+	check.assert.function(visibleX, "visibleX");
+	check.assert.function(visibleY, "visibleY");	
 	
 	if (!check.assigned(plot.xAxisOriginGroup)) {
 		plot.xAxisOrigin = d3.axisBottom(visibleX)
@@ -648,7 +488,8 @@ function plotXAxisOrigin(visibleX, visibleY) {
 }
 
 function plotXAxisBottom(visibleX) {
-	check.assert.assigned(visibleX, "visibleX");
+	check.assert.function(visibleX, "visibleX");
+
 
 	if (!check.assigned(plot.xAxisBottomGroup)) {	
 		plot.xAxisBottom = d3.axisBottom(visibleX)
@@ -670,7 +511,7 @@ function plotXAxisBottom(visibleX) {
 }
 
 function plotYAxis(visibleY) {
-	check.assert.assigned(visibleY, "visibleY");
+	check.assert.function(visibleY, "visibleY");
 
 	if (!check.assigned(plot.yAxisGroup)) {	
 		plot.yAxis = d3.axisLeft(visibleY);	
@@ -690,12 +531,6 @@ function plotYAxis(visibleY) {
 }
 
 function plotSeries(data, visibleX, visibleY, fromYearSelection, toYearSelection, refreshType) {
-	check.assert.assigned(data, "data");	
-	check.assert.assigned(visibleX, "visibleX");
-	check.assert.assigned(visibleY, "visibleY");
-	check.assert.assigned(fromYearSelection, "fromYearSelection");
-	check.assert.assigned(toYearSelection, "toYearSelection");
-	check.assert.assigned(refreshType, "refreshType");
 	check.assert.array(data, "data");	
 	check.assert.function(visibleX, "visibleX");
 	check.assert.function(visibleY, "visibleY");	
@@ -770,8 +605,6 @@ function plotSeries(data, visibleX, visibleY, fromYearSelection, toYearSelection
 }
 
 function plotSeriesLegend(data, visibleY) {
-	check.assert.assigned(data, "data");	
-	check.assert.assigned(visibleY, "visibleY");
 	check.assert.array(data, "data");	
 	check.assert.function(visibleY, "visibleY");	
 
@@ -833,7 +666,7 @@ function plotSeriesLegend(data, visibleY) {
 
 	d3.forceSimulation(seriesLegendData.nodes)
     .alphaDecay(0.25)
-	.force('collision', d3.forceCollide().radius(12).strength(1))
+	.force('collision', d3.forceCollide().radius(12).strength(2))
     .force('X', d3.forceX().x(function(d) { return d.targetX }))
     .force('Y', d3.forceY().y(function(d) { return d.targetY }))
     .on('tick', seriesLegendUpdate)
@@ -861,8 +694,6 @@ function plotSeriesLegend(data, visibleY) {
 }
 
 function highlightSeries(countryCode, data) {
-	check.assert.assigned(data, "data");	
-	check.assert.assigned(countryCode, "countryCode");
 	check.assert.array(data, "data");	
 	check.assert.string(countryCode, "countryCode");	
 
@@ -896,8 +727,6 @@ function highlightSeries(countryCode, data) {
 }
 
 function unHighlightSeries(countryCode, data) {
-	check.assert.assigned(data, "data");	
-	check.assert.assigned(countryCode, "countryCode");
 	check.assert.array(data, "data");	
 	check.assert.string(countryCode, "countryCode");	
 	
@@ -919,29 +748,27 @@ function unHighlightSeries(countryCode, data) {
 }
 
 
-function getUniqueData(data, uniqueProperty, returnProperty, excludePropertyValue) {
-	check.assert.assigned(data, "data");	
-	check.assert.assigned(uniqueProperty, "uniqueProperty");
-	check.assert.assigned(returnProperty, "returnProperty");
+function getUniqueData(data, uniqueProperty, returnProperty, excludeValue) {
 	check.assert.array(data, "data");
-	check.assert.string(uniqueProperty, "uniqueProperty");			
+	check.assert.string(uniqueProperty, "uniqueProperty");
+	check.assert.assigned(returnProperty, "returnProperty");
 	if ( !check.array(returnProperty) ) {
 		returnProperty = [ returnProperty ];
 	}
 	check.assert.array.of.string(returnProperty);
-	if ( check.assigned(excludePropertyValue) ) {
-		if ( !check.array(excludePropertyValue) ) {
-			excludePropertyValue = [ excludePropertyValue ];
+	if ( check.assigned(excludeValue) ) {
+		if ( !check.array(excludeValue) ) {
+			excludeValue = [ excludeValue ];
 		}
-		check.assert.array.of.string(excludePropertyValue);
+		check.assert.array.of.string(excludeValue);
 	}
 
 	var uniqueValues = [];
 	var uniqueObjects = [];
 	data.forEach(function(d) {
 		var value = d[uniqueProperty]
-		if (check.assigned(excludePropertyValue) &&
-			excludePropertyValue.find(function(d) { return value === d } )) {
+		if (check.assigned(excludeValue) &&
+			excludeValue.find(function(d) { return value === d } )) {
 			// console.info("Excluding: ", value)
 			return
 		}
@@ -959,10 +786,6 @@ function getUniqueData(data, uniqueProperty, returnProperty, excludePropertyValu
 }
 
 function initSelector(id, data, selectedData, valueCallback, textCallback, options) {
-	check.assert.assigned(id, "id");
-	check.assert.assigned(data, "data");
-	check.assert.assigned(valueCallback, "valueCallback");
-	check.assert.assigned(textCallback, "textCallback");
 	check.assert.string(id, "id");			
 	check.assert.array(data, "data");
 	if ( check.assigned(selectedData) ) {
@@ -998,12 +821,10 @@ function initSelector(id, data, selectedData, valueCallback, textCallback, optio
 }
 
 function getSeriesData(
-	weoDataArray,
+	weoData,
 	subjectSelection) {
 	//console.log("getSeriesData");	
-	check.assert.assigned(weoDataArray, "weoDataArray");
-	check.assert.assigned(subjectSelection, "subjectSelection");
-	check.assert.array(weoDataArray, "weoDataArray");
+	check.assert.array(weoData, "weoData");
 	check.assert.object(subjectSelection, "subjectSelection");			
 
 	var data = [];
@@ -1014,7 +835,7 @@ function getSeriesData(
 	// console.log("filter subjectCode: ", subjectCode);
 
 	var parseTime = d3.timeParse("%Y");
-	weoDataArray.forEach(function(d) {
+	weoData.forEach(function(d) {
         if (subjectCode == d.subjectCode) {
 			var countryCode = d.countryCode;
 			var countryName = d.countryName;
@@ -1038,8 +859,6 @@ function filterSeriesDataByCountry(
 	seriesDataArray,
 	countrySelection) {
 	// console.log("filterSeriesDataByCountry");	
-	check.assert.assigned(seriesDataArray, "seriesDataArray");
-	check.assert.assigned(countrySelection, "countrySelection");
 	check.assert.array(seriesDataArray, "seriesDataArray");
 	check.assert.object(countrySelection, "countrySelection");				
 	
@@ -1060,10 +879,6 @@ function orderSeriesDataByValue(
 	toYearSelection,
 	refreshType) {	
 	//console.log("orderSeriesDataByValue");
-	check.assert.assigned(seriesDataArray, "seriesDataArray");
-	check.assert.assigned(fromYearSelection, "fromYearSelection");
-	check.assert.assigned(toYearSelection, "toYearSelection");
-	check.assert.assigned(refreshType, "refreshType");
 	check.assert.array(seriesDataArray, "seriesDataArray");
 	check.assert.integer(fromYearSelection, "fromYearSelection");	
 	check.assert.integer(toYearSelection, "toYearSelection");	
@@ -1100,37 +915,178 @@ function orderSeriesDataByValue(
 	}
 }
 
-/** Returns a list regions organised as single object with
- * UN (and other) region names as properties. Each region is 
- * associated with an array of ISO three letter country codes.
+// CountryDataMap
+//
+
+function CountryDataMap(countryDataArray) {
+	check.assert.array.of.instanceStrict(countryDataArray, CountryData)
+	var countryDataMap = this
+	countryDataArray.forEach(function(d) { countryDataMap[d.countryCode] = d })
+}
+
+CountryDataMap.prototype.getCountryDataByCountryCode = function(countryCode) {
+	if (this.hasOwnProperty(countryCode)) {
+		return this[countryCode]
+	}
+	console.error("Unknown country code: ", countryCode)
+	return null
+}
+
+/** Creates a CountryDataMap object from d3.tsv result.
+*/
+CountryDataMap.create = function(result) {
+	var countryCodeColumn     = "ISO_ALPHA3", // ISO three letter country code
+		countryNameColumn     = "COUNTRY_NAME",
+		longCountryNameColumn = "LONG_COUNTRY_NAME"
+		// "ISO_ALPHA2" 
+		// "ISO_NUMERIC"
+
+	var countryDataArray = result.map(function(d) {
+		return new CountryData(
+			d[countryCodeColumn], 
+			d[countryNameColumn], 
+			d[longCountryNameColumn])
+	})
+	//console.log("countryDataArray:", countryDataArray)
+	var countryDataMap = new CountryDataMap(countryDataArray)
+	//console.log("countryDataMap:", countryDataMap)
+	return countryDataMap	
+}
+
+// CountryData
+//
+
+function CountryData(countryCode, countryName, longCountryName) {
+	check.assert.string(countryCode, "countryCode");
+	check.assert.string(countryName, "countryName");
+	check.assert.string(longCountryName, "longCountryName");	
+    this.countryCode = countryCode;
+    this.countryName = countryName;
+    this.longCountryName = longCountryName;	
+}
+
+// WeoData
+//
+
+function WeoData(countryCode, countryName, subjectCode, subjectName, unit, scale, values) {
+	check.assert.string(countryCode);
+	check.assert.string(countryName);
+	check.assert.string(subjectCode);
+	check.assert.string(subjectName);
+	check.assert.string(unit);
+	check.assert.string(scale);	
+	check.assert.array.of.instanceStrict(values, WeoDataValue);	
+	this.countryCode = countryCode;
+	this.countryName = countryName;
+	this.subjectCode = subjectCode;
+	this.subjectName = subjectName;	
+	this.unit = unit;
+	this.scale = scale;	
+	this.values = values;
+}
+
+/** Creates an array of WeoData objects from d3.tsv result.
+*/
+WeoData.create = function(result) {	
+var countryCodeColumn = "ISO", // ISO three letter country code
+	countryNameColumn = "Country",
+	subjectCodeColumn = "WEO Subject Code",
+	subjectNameColumn = "Subject Descriptor",
+	unitColumn = "Units",
+	scaleColumn = "Scale"
+	// "WEO Country Code"
+	// "Subject Notes"
+	// "Country/Series-specific Notes"
+	// "Estimates Start After"
+	
+	var weoData = []
+	result.forEach( function(d) { 
+		var countryCode = d[countryCodeColumn]
+		var countryName = d[countryNameColumn]
+		var subjectCode = d[subjectCodeColumn]
+		var subjectName = d[subjectNameColumn]
+		var unit = d[unitColumn]
+		var scale = d[scaleColumn]
+		var countryData = countryDataMap
+			.getCountryDataByCountryCode(countryCode)
+		if (countryData != null) {
+			// Overwrite country name
+			countryName = countryData.countryName
+		} else {
+			// console.error("Missing country name: ", countryCode)
+		}
+		var values = []
+		yearData.forEach(function(year) {
+			var value = parseFloat( d[year].replace(/,/g,'') )
+			if (!isNaN(value)) {
+				values.push( new WeoDataValue(year, value)); }
+		});
+		if ( values.length > 0 ) {
+			weoData.push(new WeoData(countryCode, countryName, 
+				subjectCode, subjectName, unit, scale, values))
+		}
+	})
+	// console.log("weoData:", weoData)
+	return weoData
+}
+
+// WeoData
+//
+
+function WeoDataValue(year, value) {
+	check.assert.integer(year);
+	check.assert.number(value);	
+	this.year = year;
+	this.value = value;
+}
+
+// SeriesData
+//
+
+function SeriesData(countryCode, countryName, values) {
+	check.assert.string(countryCode);
+	check.assert.string(countryName);
+	check.assert.array.of.instanceStrict(values, SeriesDataValue);	
+	this.countryCode = countryCode;
+	this.countryName = countryName;
+	this.values = values;
+}
+
+// SeriesDataValue
+//
+
+function SeriesDataValue(x, y) {
+	check.assert.instanceStrict(x, Date);	
+	check.assert.number(y);
+	this.x = x;
+	this.y = y;
+}
+
+/** Regions organised as single object with UN (and other) 
+ * region names as properties. Each region is associated 
+ * with an array of ISO three letter country codes.
  * Source: http://unstats.un.org/unsd/methods/m49/m49regin.htm
  */
-function initRegion() {
-	var list = {
+var region = {
 	"Eastern Africa": [
-		"BDI", "COM", "DJI", "ERI", "ETH", "KEN", "MDG", 
-		"MWI", "MUS", "MOZ", "RWA", "SYC", "SSD", "UGA", 
-		"TZA", "ZMB", "ZWE"],
+		"BDI", "COM", "DJI", "ERI", "ETH", "KEN", "MDG", "MWI", "MUS", "MOZ", 
+		"RWA", "SYC", "SSD", "UGA", "TZA", "ZMB", "ZWE"],
 	"Middle Africa": [
-		"AGO", "CMR", "CAF", "TCD", "COD", "COD", "GNQ", 
-		"GAB", "STP"],
+		"AGO", "CMR", "CAF", "TCD", "COD", "COD", "GNQ", "GAB", "STP"],
 	"Northern Africa": [
 		"DZA", "EGY", "LBY", "MAR", "SDN", "TUN"],
 	"Southern Africa": [
 		"BWA", "LSO", "NAM", "ZAF", "SWZ"],
 	"Western Africa": [
-		"BEN", "BFA", "CPV", "CIV", "GMB", "GHA", "GNQ", 
-		"GNB", "LBR", "MLI", "MRT", "NER", "NGA", "SEN", 
-		"SLE", "TGO"],
+		"BEN", "BFA", "CPV", "CIV", "GMB", "GHA", "GNQ", "GNB", "LBR", "MLI", 
+		"MRT", "NER", "NGA", "SEN", "SLE", "TGO"],
 	"Caribbean": [
-		"ATG", "BHS", "BRB", "DMA", "DOM", "GRD", "HTI", 
-		"JAM", "PRI", "TTO"],
+		"ATG", "BHS", "BRB", "DMA", "DOM", "GRD", "HTI", "JAM", "PRI", "TTO"],
 	"Central America": [
-		"BLZ", "CRI", "SLV", "GTM", "HND", "MEX", "NIC", 
-		"PAN"],
+		"BLZ", "CRI", "SLV", "GTM", "HND", "MEX", "NIC", "PAN"],
 	"South America": [
-		"ARG", "BOL", "BRA", "CHL", "COL", "ECU", "GUY", 
-		"PRY", "PER", "SUR", "URY", "VEN"],
+		"ARG", "BOL", "BRA", "CHL", "COL", "ECU", "GUY", "PRY", "PER", "SUR", 
+		"URY", "VEN"],
 	"Northern America": [
 		"CAN", "USA"],
 	"Central Asia": [
@@ -1138,26 +1094,22 @@ function initRegion() {
 	"Eastern Asia": [
 		"CHN", "HKG", "MAC", "KOR", "JPN", "MNG"],
 	"Southern Asia": [
-		"AFG", "BGD", "BTN", "IND", "IRN", "MDV", "NPL", 
-		"PAK", "LKA"],
+		"AFG", "BGD", "BTN", "IND", "IRN", "MDV", "NPL", "PAK", "LKA"],
 	"South-Eastern Asia": [
-		"BRN", "KHM", "IDN", "LAO", "MYS", "MMR", "PHL", 
-		"SGP", "THA", "TLS", "VNM"],
+		"BRN", "KHM", "IDN", "LAO", "MYS", "MMR", "PHL", "SGP", "THA", "TLS", 
+		"VNM"],
 	"Western Asia": [
-		"ARM", "AZE", "BHR", "CYP", "GEO", "IRQ", "ISR", 
-		"JOR", "KWT", "LBN", "OMN", "QAT", "SAU", "SYR", 
-		"TUR", "ARE", "YEM"],
+		"ARM", "AZE", "BHR", "CYP", "GEO", "IRQ", "ISR", "JOR", "KWT", "LBN", 
+		"OMN", "QAT", "SAU", "SYR", "TUR", "ARE", "YEM"],
 	"Eastern Europe": [
-		"BLR", "BGR", "CZE", "HUN", "POL", "MDA", "ROU", 
-		"RUS", "SVK", "UKR"],
+		"BLR", "BGR", "CZE", "HUN", "POL", "MDA", "ROU", "RUS", "SVK", "UKR"],
 	"Northern Europe": [
-		"DNK", "EST", "FIN", "ISL", "IRL", "LVA", "LTU", 
-		"NOR", "SWE", "GBR"],
+		"DNK", "EST", "FIN", "ISL", "IRL", "LVA", "LTU", "NOR", "SWE", "GBR"],
 	"Nordic Countries": [
 		"SWE", "NOR", "ISL", "FIN", "DNK" ],		
 	"Southern Europe": [
-		"ALB", "BIH", "HRV", "GRC", "ITA", "MLT", "MNE", 
-		"PRT", "SMR", "SRB", "SVN", "ESP", "MKD"],
+		"ALB", "BIH", "HRV", "GRC", "ITA", "MLT", "MNE", "PRT", "SMR", "SRB", 
+		"SVN", "ESP", "MKD"],
 	"Western Europe": [
 		"AUT", "BEL", "FRA", "DEU", "LUX", "NLD", "CHE"],
 	"Australia and New Zealand": [
@@ -1169,12 +1121,10 @@ function initRegion() {
 	"Polynesia": [
 		"WSM", "TON", "TUV"],
 	"Opec Countries": [
-		"DZA", "AGO", "ECU", "IRN", "IRQ", "KWT", "LBY", 
-		"NGA", "QAT", "SAU", "ARE", "VEN"],
+		"DZA", "AGO", "ECU", "IRN", "IRQ", "KWT", "LBY", "NGA", "QAT", "SAU", 
+		"ARE", "VEN"],
 	"G8 Countries": [
 		"JPN","RUS","USA","GBR","ITA","DEU","CAN","FRA"],	
 	"BRICS Countries": [
 		"RUS","CHN", "IND", "BRA", "ZAF"]	
-	}
-	return list;
 }
